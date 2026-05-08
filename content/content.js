@@ -161,6 +161,7 @@ function sendToBackground(type, payload) {
 async function init() {
   // Guard: only run on watch pages
   if (!location.pathname.startsWith('/watch')) return;
+  const videoId = new URLSearchParams(location.search).get('v') || '';
 
   // ── Step 1: extract data ───────────────────────────────────────────────────
   const playerResponse = extractPlayerResponse();
@@ -184,7 +185,7 @@ async function init() {
   // If the video has no built-in chapters, ask Claude to create them.
   if (chapters.length === 0) {
     try {
-      const response = await sendToBackground('GENERATE_CHAPTERS', { segments });
+      const response = await sendToBackground('GENERATE_CHAPTERS', { segments, videoId });
       chapters = response.chapters;
     } catch (err) {
       markChapterError(shadowRoot, 0, `Could not generate chapters: ${err.message}`);
@@ -204,7 +205,7 @@ async function init() {
   for (let i = 0; i < chapters.length; i++) {
     const { title, startSeconds, segments: chapterSegments } = chapters[i];
     try {
-      const result = await sendToBackground('SUMMARIZE_CHAPTER', { title, startSeconds, segments: chapterSegments });
+      const result = await sendToBackground('SUMMARIZE_CHAPTER', { title, startSeconds, segments: chapterSegments, chapterIndex: i, videoId });
       updateChapterCard(shadowRoot, i, result.summary, result.bullets);
     } catch (err) {
       markChapterError(shadowRoot, i, err.message);
