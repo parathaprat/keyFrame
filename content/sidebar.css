@@ -1,0 +1,99 @@
+/*
+ * sidebar.css
+ *
+ * Injected into the Shadow DOM root, so these rules are fully isolated from
+ * YouTube's stylesheet. All selectors are scoped to elements we create;
+ * no need for BEM prefixes or specificity hacks.
+ *
+ * Loaded via chrome.runtime.getURL in content.js and attached as a <style>
+ * element inside the shadow root — NOT via manifest content_scripts css.
+ */
+
+/* ─── Container ─────────────────────────────────────────────────────────────── */
+
+:host {
+  /* Resets any inherited YouTube styles leaking through the shadow boundary */
+  all: initial;
+  display: block;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 14px;
+  color: #0f0f0f;
+  box-sizing: border-box;
+}
+
+.kf-sidebar {
+  /* TODO: padding, border-radius, background, margin-bottom to sit naturally
+     inside YouTube's #secondary column alongside recommendations */
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+
+.kf-header {
+  /* TODO: flex row, KeyFrames logo/title left, Export button right */
+}
+
+.kf-title {
+  /* TODO: font-weight, size — match YouTube's section heading style */
+}
+
+.kf-export-btn {
+  /* TODO: small ghost button — border, padding, hover state */
+}
+
+/* ─── Loading / empty states ─────────────────────────────────────────────────── */
+
+.kf-loading {
+  /* TODO: centered spinner or skeleton bars while transcript is fetching */
+}
+
+.kf-error {
+  /* TODO: subtle error callout — light red background, error icon */
+}
+
+/* ─── Chapter card ───────────────────────────────────────────────────────────── */
+
+.kf-chapter {
+  /* TODO: card container — border-bottom separator between chapters */
+}
+
+.kf-chapter-header {
+  /* TODO: flex row — timestamp pill left, chapter title right */
+}
+
+.kf-timestamp {
+  /* TODO: clickable pill — accent color, monospace font, cursor pointer
+     Clicking seeks the video to this chapter's start time */
+}
+
+.kf-timestamp:hover {
+  /* TODO: darken / underline */
+}
+
+.kf-chapter-title {
+  /* TODO: semibold, slightly larger than body text */
+}
+
+/* ─── Summary content ────────────────────────────────────────────────────────── */
+
+.kf-summary {
+  /* TODO: line-height, color — slightly muted vs chapter title */
+}
+
+.kf-bullets {
+  /* TODO: list-style, spacing — clean bullet list of key takeaways */
+}
+
+.kf-bullets li {
+  /* TODO: padding between items */
+}
+
+/* ─── Per-chapter loading skeleton ───────────────────────────────────────────── */
+
+.kf-skeleton {
+  /* TODO: animated shimmer bars as placeholder while Claude is processing
+     Use a CSS keyframe animation (shimmer gradient sweep) */
+}
+
+@keyframes kf-shimmer {
+  /* TODO: from { background-position: -200% 0 } to { background-position: 200% 0 } */
+}

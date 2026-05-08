@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeyFrames</title>
+  <style>
+    /*
+     * Popup styles live here (inline) since the popup is self-contained.
+     * Keep it narrow — Chrome popup max-width is 800px but ~320px feels right.
+     */
+
+    body {
+      width: 300px;
+      padding: 16px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 14px;
+      color: #0f0f0f;
+      margin: 0;
+    }
+
+    /* TODO: header with KeyFrames name/logo */
+
+    /* TODO: status indicator — shows whether we're on a YouTube watch page
+       and whether the sidebar has loaded */
+
+    /* TODO: API key section
+       - label + password input
+       - Save button
+       - "Key saved" confirmation state */
+
+    /* TODO: footer with version number */
+  </style>
+</head>
+<body>
+
+  <header class="popup-header">
+    <!-- TODO: KeyFrames title + small icon -->
+  </header>
+
+  <!-- Status: shown only when on a YouTube watch page -->
+  <section class="popup-status" id="status-section">
+    <!-- TODO: dynamically populated by popup.js
+         States: "Not on a YouTube video", "Loading...", "X chapters summarized" -->
+  </section>
+
+  <!-- API key management -->
+  <section class="popup-key-section">
+    <label for="api-key-input">Anthropic API Key</label>
+    <input
+      type="password"
+      id="api-key-input"
+      placeholder="sk-ant-..."
+      autocomplete="off"
+    />
+    <button id="save-key-btn">Save</button>
+    <p class="key-status" id="key-status">
+      <!-- TODO: "Key saved" / "No key set" — populated by popup.js -->
+    </p>
+  </section>
+
+  <footer class="popup-footer">
+    <!-- TODO: version string -->
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
