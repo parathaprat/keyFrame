@@ -1,99 +1,257 @@
 /*
- * sidebar.css
- *
- * Injected into the Shadow DOM root, so these rules are fully isolated from
- * YouTube's stylesheet. All selectors are scoped to elements we create;
- * no need for BEM prefixes or specificity hacks.
- *
- * Loaded via chrome.runtime.getURL in content.js and attached as a <style>
- * element inside the shadow root — NOT via manifest content_scripts css.
+ * sidebar.css — injected into Shadow DOM, fully isolated from YouTube's styles.
+ * Uses :host as the root; all selectors are scoped to elements we own.
  */
 
-/* ─── Container ─────────────────────────────────────────────────────────────── */
+/* ─── Reset + host ───────────────────────────────────────────────────────────── */
 
 :host {
-  /* Resets any inherited YouTube styles leaking through the shadow boundary */
   all: initial;
   display: block;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── Sidebar shell ──────────────────────────────────────────────────────────── */
+
+.kf-sidebar {
   font-family: 'Roboto', Arial, sans-serif;
   font-size: 14px;
   color: #0f0f0f;
-  box-sizing: border-box;
-}
-
-.kf-sidebar {
-  /* TODO: padding, border-radius, background, margin-bottom to sit naturally
-     inside YouTube's #secondary column alongside recommendations */
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 /* ─── Header ─────────────────────────────────────────────────────────────────── */
 
 .kf-header {
-  /* TODO: flex row, KeyFrames logo/title left, Export button right */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .kf-title {
-  /* TODO: font-weight, size — match YouTube's section heading style */
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: #0f0f0f;
 }
 
 .kf-export-btn {
-  /* TODO: small ghost button — border, padding, hover state */
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 13px;
+  border: 1.5px solid #065fd4;
+  border-radius: 18px;
+  color: #065fd4;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
 }
 
-/* ─── Loading / empty states ─────────────────────────────────────────────────── */
-
-.kf-loading {
-  /* TODO: centered spinner or skeleton bars while transcript is fetching */
+.kf-export-btn:hover:not(:disabled) {
+  background: #065fd4;
+  color: #fff;
 }
 
-.kf-error {
-  /* TODO: subtle error callout — light red background, error icon */
+.kf-export-btn:disabled {
+  border-color: #d4d4d4;
+  color: #b0b0b0;
+  cursor: default;
+}
+
+/* ─── Status bar ─────────────────────────────────────────────────────────────── */
+
+.kf-status {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  color: #606060;
+  padding: 7px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 /* ─── Chapter card ───────────────────────────────────────────────────────────── */
 
 .kf-chapter {
-  /* TODO: card container — border-bottom separator between chapters */
+  padding: 14px 16px;
+  border-bottom: 1px solid #f2f2f2;
+}
+
+.kf-chapter:last-child {
+  border-bottom: none;
 }
 
 .kf-chapter-header {
-  /* TODO: flex row — timestamp pill left, chapter title right */
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .kf-timestamp {
-  /* TODO: clickable pill — accent color, monospace font, cursor pointer
-     Clicking seeks the video to this chapter's start time */
+  flex-shrink: 0;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  background: #e8f0fe;
+  color: #065fd4;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1.5;
 }
 
 .kf-timestamp:hover {
-  /* TODO: darken / underline */
+  background: #065fd4;
+  color: #fff;
 }
 
 .kf-chapter-title {
-  /* TODO: semibold, slightly larger than body text */
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f0f0f;
+  line-height: 1.45;
+}
+
+.kf-ai-badge {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 1px 5px;
+  background: #f3f0ff;
+  color: #7c3aed;
+  border-radius: 4px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
 }
 
 /* ─── Summary content ────────────────────────────────────────────────────────── */
 
 .kf-summary {
-  /* TODO: line-height, color — slightly muted vs chapter title */
+  font-size: 13px;
+  line-height: 1.65;
+  color: #3d3d3d;
+  margin-bottom: 10px;
 }
 
-.kf-bullets {
-  /* TODO: list-style, spacing — clean bullet list of key takeaways */
+.kf-takeaways {
+  padding-left: 16px;
+  list-style: disc;
 }
 
-.kf-bullets li {
-  /* TODO: padding between items */
+.kf-takeaways li {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #606060;
+  margin-bottom: 4px;
 }
 
-/* ─── Per-chapter loading skeleton ───────────────────────────────────────────── */
+.kf-takeaways li:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Error state ────────────────────────────────────────────────────────────── */
+
+.kf-error {
+  font-size: 12px;
+  color: #c0392b;
+  line-height: 1.5;
+}
+
+/* ─── Loading shimmer ────────────────────────────────────────────────────────── */
 
 .kf-skeleton {
-  /* TODO: animated shimmer bars as placeholder while Claude is processing
-     Use a CSS keyframe animation (shimmer gradient sweep) */
+  height: 11px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #ebebeb 25%, #f5f5f5 50%, #ebebeb 75%);
+  background-size: 200% 100%;
+  animation: kf-shimmer 1.6s ease-in-out infinite;
 }
 
+.kf-skeleton--short   { width: 72%; }
+.kf-skeleton--shorter { width: 48%; margin-bottom: 0; }
+
 @keyframes kf-shimmer {
-  /* TODO: from { background-position: -200% 0 } to { background-position: 200% 0 } */
+  0%   { background-position:  200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Fade-in for resolved cards ─────────────────────────────────────────────── */
+
+.kf-fade-in {
+  animation: kf-fadein 0.35s ease-out both;
+}
+
+@keyframes kf-fadein {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ─── Dark mode ──────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .kf-sidebar {
+    background: #212121;
+    color: #e8e8e8;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+
+  .kf-header        { border-bottom-color: #2e2e2e; }
+  .kf-title         { color: #e8e8e8; }
+
+  .kf-export-btn              { border-color: #4f8ef7; color: #4f8ef7; }
+  .kf-export-btn:hover:not(:disabled) { background: #4f8ef7; color: #fff; }
+  .kf-export-btn:disabled     { border-color: #444; color: #555; }
+
+  .kf-status {
+    color: #999;
+    background: #1a1a1a;
+    border-bottom-color: #2e2e2e;
+  }
+
+  .kf-chapter       { border-bottom-color: #2e2e2e; }
+  .kf-chapter-title { color: #e8e8e8; }
+
+  .kf-timestamp {
+    background: #1c2d50;
+    color: #90b8f8;
+  }
+  .kf-timestamp:hover {
+    background: #4f8ef7;
+    color: #fff;
+  }
+
+  .kf-ai-badge {
+    background: #2a1f40;
+    color: #c4b5fd;
+  }
+
+  .kf-summary       { color: #c8c8c8; }
+  .kf-takeaways li  { color: #999; }
+  .kf-error         { color: #f1948a; }
+
+  .kf-skeleton {
+    background: linear-gradient(90deg, #2c2c2c 25%, #363636 50%, #2c2c2c 75%);
+    background-size: 200% 100%;
+    animation: kf-shimmer 1.6s ease-in-out infinite;
+  }
 }

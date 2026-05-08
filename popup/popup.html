@@ -2,66 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KeyFrames</title>
   <style>
-    /*
-     * Popup styles live here (inline) since the popup is self-contained.
-     * Keep it narrow — Chrome popup max-width is 800px but ~320px feels right.
-     */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      width: 300px;
-      padding: 16px;
+      width: 272px;
+      padding: 20px;
       font-family: 'Roboto', Arial, sans-serif;
       font-size: 14px;
       color: #0f0f0f;
-      margin: 0;
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* TODO: header with KeyFrames name/logo */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
 
-    /* TODO: status indicator — shows whether we're on a YouTube watch page
-       and whether the sidebar has loaded */
+    .header-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #065fd4;
+      flex-shrink: 0;
+    }
 
-    /* TODO: API key section
-       - label + password input
-       - Save button
-       - "Key saved" confirmation state */
+    .header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
 
-    /* TODO: footer with version number */
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #606060;
+      margin-bottom: 6px;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      color: #0f0f0f;
+      outline: none;
+      transition: border-color 0.15s;
+      background: #fff;
+    }
+
+    input[type="password"]:focus {
+      border-color: #065fd4;
+    }
+
+    .key-preview {
+      font-size: 11px;
+      color: #606060;
+      margin-top: 5px;
+      min-height: 16px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .btn-save {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 9px;
+      background: #065fd4;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-save:hover { background: #0552b5; }
+    .btn-save:active { background: #044399; }
+
+    .status-msg {
+      margin-top: 9px;
+      font-size: 12px;
+      min-height: 18px;
+      color: #188038;
+    }
+
+    .status-msg.error { color: #c0392b; }
   </style>
 </head>
 <body>
 
-  <header class="popup-header">
-    <!-- TODO: KeyFrames title + small icon -->
-  </header>
+  <div class="header">
+    <div class="header-dot"></div>
+    <h1>KeyFrames</h1>
+  </div>
 
-  <!-- Status: shown only when on a YouTube watch page -->
-  <section class="popup-status" id="status-section">
-    <!-- TODO: dynamically populated by popup.js
-         States: "Not on a YouTube video", "Loading...", "X chapters summarized" -->
-  </section>
+  <label for="api-key">Anthropic API Key</label>
+  <input type="password" id="api-key" placeholder="sk-ant-…" spellcheck="false" />
+  <p class="key-preview" id="key-preview"></p>
 
-  <!-- API key management -->
-  <section class="popup-key-section">
-    <label for="api-key-input">Anthropic API Key</label>
-    <input
-      type="password"
-      id="api-key-input"
-      placeholder="sk-ant-..."
-      autocomplete="off"
-    />
-    <button id="save-key-btn">Save</button>
-    <p class="key-status" id="key-status">
-      <!-- TODO: "Key saved" / "No key set" — populated by popup.js -->
-    </p>
-  </section>
+  <button class="btn-save" id="btn-save">Save Key</button>
 
-  <footer class="popup-footer">
-    <!-- TODO: version string -->
-  </footer>
+  <p class="status-msg" id="status-msg"></p>
 
   <script src="popup.js"></script>
 </body>
