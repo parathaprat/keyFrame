@@ -14,7 +14,7 @@
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
-const CLAUDE_MODEL   = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL   = 'claude-sonnet-4-6';
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
@@ -63,9 +63,10 @@ async function callClaude(apiKey, systemPrompt, userMessage, maxTokens = 1024) {
   const res = await fetch(CLAUDE_API_URL, {
     method: 'POST',
     headers: {
-      'x-api-key':         apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
+      'x-api-key':                              apiKey,
+      'anthropic-version':                      '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type':                           'application/json',
     },
     body: JSON.stringify({
       model:      CLAUDE_MODEL,
@@ -84,40 +85,49 @@ async function callClaude(apiKey, systemPrompt, userMessage, maxTokens = 1024) {
   return data.content[0].text;
 }
 
-// Calls Claude and parses the response as JSON. Strips markdown code fences if
-// present. Retries once with an explicit correction prompt if parsing fails.
+// Calls Claude and parses the response as JSON.
+// Tries three extraction strategies before giving up:
+//   1. Direct parse after stripping markdown code fences
+//   2. Extract the first JSON array [...] found anywhere in the text
+//   3. Extract the first JSON object {...} found anywhere in the text
+// If all three fail, retries once with a correction prompt then repeats them.
 async function callClaudeForJson(apiKey, systemPrompt, userMessage, maxTokens = 1024) {
-  const stripFences = t => t.replace(/```(?:json)?\n?([\s\S]*?)\n?```/g, '$1').trim();
+  function extractJson(text) {
+    const stripped = text.replace(/```(?:json)?\n?([\s\S]*?)\n?```/g, '$1').trim();
+    try { return JSON.parse(stripped); } catch {}
+    const arr = stripped.match(/(\[[\s\S]*\])/);
+    if (arr) { try { return JSON.parse(arr[1]); } catch {} }
+    const obj = stripped.match(/(\{[\s\S]*\})/);
+    if (obj) { try { return JSON.parse(obj[1]); } catch {} }
+    return null;
+  }
 
   const text = await callClaude(apiKey, systemPrompt, userMessage, maxTokens);
-  try {
-    return JSON.parse(stripFences(text));
-  } catch {
-    // One retry: tell Claude its response was unparseable
-    const retryText = await callClaude(
-      apiKey,
-      systemPrompt,
-      userMessage + '\n\nYour previous response could not be parsed as JSON. ' +
-        'Return ONLY raw JSON — no markdown, no code fences, no explanation.',
-      maxTokens,
-    );
-    try {
-      return JSON.parse(stripFences(retryText));
-    } catch {
-      throw new Error('Claude returned invalid JSON after retry');
-    }
-  }
+  const result = extractJson(text);
+  if (result !== null) return result;
+
+  // One retry: tell Claude its response was unparseable
+  const retryText = await callClaude(
+    apiKey,
+    systemPrompt,
+    userMessage + '\n\nYour previous response could not be parsed as JSON. ' +
+      'Return ONLY raw JSON — no markdown, no code fences, no explanation.',
+    maxTokens,
+  );
+  const retryResult = extractJson(retryText);
+  if (retryResult !== null) return retryResult;
+
+  throw new Error('Claude returned invalid JSON after retry');
 }
 
 // ─── Transcript compression ───────────────────────────────────────────────────
 
-// Samples one segment per 5-minute window so even a 3-hour lecture fits
-// comfortably in the context window (~36 lines for a 3-hour video).
+// Samples one segment per 1-minute window (~120 lines for a 2-hour video).
 function compressTranscript(segments) {
   const sampled = new Map(); // windowIndex → first segment in that window
 
   for (const seg of segments) {
-    const window = Math.floor(seg.start / 300);
+    const window = Math.floor(seg.start / 60);
     if (!sampled.has(window)) sampled.set(window, seg);
   }
 
@@ -156,7 +166,7 @@ Rules:
 
   const user = `Analyze this compressed transcript and identify 4-8 logical chapters.\n\n${compressed}`;
 
-  const raw = await callClaudeForJson(apiKey, system, user, 512);
+  const raw = await callClaudeForJson(apiKey, system, user, 1024);
 
   // Normalise: Claude might return { chapters: [...] } instead of a bare array
   const chapters = Array.isArray(raw) ? raw : raw.chapters ?? raw;
@@ -191,7 +201,7 @@ Rules:
 
   const user = `Chapter title: "${title}"\n\nTranscript:\n${transcript}`;
 
-  const result = await callClaudeForJson(apiKey, system, user, 512);
+  const result = await callClaudeForJson(apiKey, system, user, 1024);
 
   if (!result.summary || !Array.isArray(result.takeaways)) {
     throw new Error('Claude returned malformed summary object');
@@ -204,7 +214,20 @@ Rules:
 // ─── Message router ───────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  console.log('[KeyFrames SW] received:', message.type);
   const { type, payload } = message;
+
+  if (type === 'FETCH_TRANSCRIPT_SERVER') {
+    const { videoId, lang } = payload;
+    fetch(`http://localhost:3000/transcript?videoId=${videoId}&lang=${lang || 'en'}`)
+      .then(res => res.json().then(data => ({ res, data })))
+      .then(({ res, data }) => {
+        if (!res.ok) return sendResponse({ ok: false, error: data.error || 'Transcript fetch failed' });
+        sendResponse({ ok: true, segments: data.segments });
+      })
+      .catch(err => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
 
   if (type === 'GENERATE_CHAPTERS') {
     const { segments, videoId } = payload;

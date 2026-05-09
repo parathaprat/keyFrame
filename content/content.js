@@ -25,9 +25,24 @@ let currentVideoTitle = '';
 function extractPlayerResponse() {
   try {
     for (const script of document.querySelectorAll('script')) {
-      if (!script.textContent.includes('ytInitialPlayerResponse')) continue;
-      const match = script.textContent.match(/ytInitialPlayerResponse\s*=\s*({.+?});/s);
-      if (match) return JSON.parse(match[1]);
+      const text = script.textContent;
+      if (!text.includes('ytInitialPlayerResponse')) continue;
+
+      const start = text.indexOf('ytInitialPlayerResponse');
+      const brace = text.indexOf('{', start);
+      if (brace === -1) continue;
+
+      let depth = 0;
+      let i = brace;
+      for (; i < text.length; i++) {
+        if (text[i] === '{') depth++;
+        else if (text[i] === '}') {
+          depth--;
+          if (depth === 0) break;
+        }
+      }
+
+      return JSON.parse(text.slice(brace, i + 1));
     }
     return null;
   } catch {
@@ -38,25 +53,50 @@ function extractPlayerResponse() {
 // Returns an array of {title, startSeconds} from the playerResponse chapters
 // path, or an empty array if the video has no chapters.
 function extractChapters(playerResponse) {
-  const chapters = playerResponse
-    ?.playerOverlays
-    ?.playerOverlayRenderer
-    ?.decoratedPlayerBarRenderer
-    ?.decoratedPlayerBarRenderer
-    ?.playerBar
-    ?.multiMarkersPlayerBarRenderer
+  // Try playerOverlays path first
+  const overlayChapters = playerResponse
+    ?.playerOverlays?.playerOverlayRenderer
+    ?.decoratedPlayerBarRenderer?.decoratedPlayerBarRenderer
+    ?.playerBar?.multiMarkersPlayerBarRenderer
     ?.markersMap?.[0]?.value?.chapters;
 
-  if (!Array.isArray(chapters) || chapters.length === 0) return [];
+  if (Array.isArray(overlayChapters) && overlayChapters.length > 0) {
+    return overlayChapters.map(ch => ({
+      title: ch.chapterRenderer.title.simpleText,
+      startSeconds: ch.chapterRenderer.timeRangeStartMillis / 1000,
+    }));
+  }
 
-  return chapters.map(ch => ({
-    title:        ch.chapterRenderer.title.simpleText,
-    startSeconds: ch.chapterRenderer.timeRangeStartMillis / 1000,
-  }));
+  // Fallback: extract from ytInitialData horizontalCardListRenderer
+  try {
+    for (const script of document.querySelectorAll('script')) {
+      if (!script.textContent.includes('ytInitialData')) continue;
+      const match = script.textContent.match(/ytInitialData\s*=\s*({.+?});/s);
+      if (!match) continue;
+      const data = JSON.parse(match[1]);
+      const panel = data?.engagementPanels?.find(p =>
+        p?.engagementPanelSectionListRenderer?.panelIdentifier ===
+        'engagement-panel-structured-description'
+      );
+      const rows = panel?.engagementPanelSectionListRenderer?.content
+        ?.structuredDescriptionContentRenderer?.items;
+      const cardList = rows?.find(r => r?.horizontalCardListRenderer);
+      const cards = cardList?.horizontalCardListRenderer?.cards;
+      if (!Array.isArray(cards) || cards.length === 0) continue;
+      const chapters = cards.map(c => ({
+        title: c?.macroMarkersListItemRenderer?.title?.simpleText,
+        startSeconds: c?.macroMarkersListItemRenderer?.onTap?.watchEndpoint?.startTimeSeconds ?? 0,
+      })).filter(c => c.title);
+      if (chapters.length > 0) return chapters;
+    }
+  } catch(e) {}
+
+  return [];
 }
 
-// Returns the URL string for the first English caption track, or null.
-function extractCaptionUrl(playerResponse) {
+// Returns { baseUrl } for the best available caption track, or null.
+// Priority: manual English → ASR English → any English variant → first.
+function extractCaptionTrack(playerResponse) {
   const tracks = playerResponse
     ?.captions
     ?.playerCaptionsTracklistRenderer
@@ -64,26 +104,23 @@ function extractCaptionUrl(playerResponse) {
 
   if (!Array.isArray(tracks) || tracks.length === 0) return null;
 
-  const track = tracks.find(t => t.languageCode === 'en') ?? tracks[0];
-  return track.baseUrl ?? null;
+  const isEnglish = t => t.languageCode === 'en' || t.languageCode?.startsWith('en-');
+
+  const track =
+    tracks.find(t => isEnglish(t) && t.kind !== 'asr')  ?? // manual English
+    tracks.find(t => isEnglish(t))                        ?? // ASR English (en, en-US …)
+    tracks[0];                                               // anything
+
+  return { baseUrl: track.baseUrl ?? null };
 }
 
-// Fetches the caption XML from YouTube and returns parsed segments.
-// Returns [{start: number, dur: number, text: string}].
-async function fetchTranscript(captionUrl) {
-  const response = await fetch(captionUrl);
-  const xmlText  = await response.text();
-  const doc      = new DOMParser().parseFromString(xmlText, 'text/xml');
-
-  return Array.from(doc.querySelectorAll('text')).map(el => ({
-    start: parseFloat(el.getAttribute('start')),
-    dur:   parseFloat(el.getAttribute('dur')),
-    text:  el.textContent
-      .replace(/&amp;/g,  '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g,  "'")
-      .replace(/&lt;/g,   '<')
-      .replace(/&gt;/g,   '>'),
+// Fetches captions via the service worker → local KeyFrames server.
+async function fetchTranscript(videoId) {
+  const result = await sendToBackground('FETCH_TRANSCRIPT_SERVER', { videoId, lang: 'en' });
+  return result.segments.map(s => ({
+    start: s.offset / 1000,
+    dur:   s.duration / 1000,
+    text:  s.text,
   }));
 }
 
@@ -150,7 +187,14 @@ async function injectSidebar() {
     exportMarkdown(currentVideoTitle, currentChapters);
   });
 
-  document.querySelector(SECONDARY_SEL)?.prepend(host);
+  // Wait up to 3 s for #secondary — it may not be painted yet at document_idle
+  let secondary = null;
+  for (let i = 0; i < 10; i++) {
+    secondary = document.querySelector(SECONDARY_SEL);
+    if (secondary) break;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  (secondary ?? document.body).prepend(host);
   return shadowRoot;
 }
 
@@ -262,48 +306,55 @@ async function init() {
   if (!location.pathname.startsWith('/watch')) return;
   const videoId = new URLSearchParams(location.search).get('v') || '';
 
-  // ── Step 1: extract data ───────────────────────────────────────────────────
-  const playerResponse = extractPlayerResponse();
-  if (!playerResponse) return; // silent exit — not a watch page or YT changed schema
+  // ── Step 1: wait for ytInitialPlayerResponse ───────────────────────────────
+  let playerResponse = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    playerResponse = extractPlayerResponse();
+    if (playerResponse) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+  if (!playerResponse) return;
   currentVideoTitle = document.title.replace(' - YouTube', '').trim();
 
-  const captionUrl = extractCaptionUrl(playerResponse);
-  if (!captionUrl) {
-    // TODO: show "no captions available" state in sidebar
-    return;
-  }
+  // ── Step 2: inject sidebar immediately so every subsequent error is visible ─
+  const shadowRoot = await injectSidebar();
+  const setStatus  = msg => { shadowRoot.getElementById('kf-status').textContent = msg; };
 
   let chapters = extractChapters(playerResponse);
 
-  // ── Step 2: fetch transcript ───────────────────────────────────────────────
-  const segments = await fetchTranscript(captionUrl);
-  // Inject the sidebar now so the user sees a loading state while Claude runs.
-  // shadowRoot is reused for all subsequent updates.
-  const shadowRoot = await injectSidebar();
+  // ── Step 3: fetch transcript via local server ──────────────────────────────
+  let segments;
+  try {
+    segments = await fetchTranscript(videoId);
+  } catch (err) {
+    setStatus(`Failed to load transcript: ${err.message}`);
+    return;
+  }
 
-  // ── Step 3: generate chapters if needed ───────────────────────────────────
-  // If the video has no built-in chapters, ask Claude to create them.
+  if (segments.length === 0) {
+    setStatus('No transcript found for this video.');
+    return;
+  }
+
+  // ── Step 4: generate chapters if needed ────────────────────────────────────
   if (chapters.length === 0) {
     try {
       const response = await sendToBackground('GENERATE_CHAPTERS', { segments, videoId });
       chapters = response.chapters.map(ch => ({ ...ch, aiGenerated: true }));
     } catch (err) {
-      markChapterError(shadowRoot, 0, `Could not generate chapters: ${err.message}`);
+      setStatus(`Error: ${err.message}`);
       return;
     }
   }
 
-  // ── Step 4: assign transcript segments to chapters ────────────────────────
+  // ── Step 5: assign transcript segments to chapters ─────────────────────────
   assignSegmentsToChapters(segments, chapters);
-
   currentChapters = chapters;
 
-  // ── Step 5: render chapter skeletons (sidebar already injected in Step 2) ─
+  // ── Step 6: render chapter skeletons ───────────────────────────────────────
   renderChapterSkeleton(shadowRoot, chapters);
 
-  // ── Step 6: summarize each chapter sequentially ───────────────────────────
-  // Sequential (not parallel) so the user sees chapters fill in one by one,
-  // and so we don't burst the API rate limit.
+  // ── Step 7: summarize each chapter sequentially ────────────────────────────
   for (let i = 0; i < chapters.length; i++) {
     const { title, startSeconds, segments: chapterSegments } = chapters[i];
     try {
