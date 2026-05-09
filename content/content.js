@@ -370,7 +370,10 @@ async function init() {
 
 // Called when the user clicks the Export button in the sidebar.
 // Assembles all chapter summaries into a Markdown document and triggers a download.
+// Uses an anchor-click download because chrome.downloads is not available in content scripts.
 function exportMarkdown(videoTitle, chapters) {
+  console.log('[KeyFrames] exportMarkdown called, chapters:', chapters.length, chapters.map(c => ({ title: c.title, hasSummary: !!c.summary })));
+
   const formatTs = s => {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
@@ -391,13 +394,22 @@ function exportMarkdown(videoTitle, chapters) {
     }
   }
 
+  const videoId = new URLSearchParams(location.search).get('v') || 'video';
   const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
   const url  = URL.createObjectURL(blob);
-  const videoId = new URLSearchParams(location.search).get('v') || 'video';
 
-  chrome.downloads.download({ url, filename: `keyframes-${videoId}.md` }, () => {
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `keyframes-${videoId}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error('[KeyFrames] export failed:', err);
+  } finally {
     URL.revokeObjectURL(url);
-  });
+  }
 }
 
 // ─── SPA navigation ───────────────────────────────────────────────────────────
