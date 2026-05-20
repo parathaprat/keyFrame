@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>KeyFrames</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 272px;
+      padding: 20px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 14px;
+      color: #0f0f0f;
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .header-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #065fd4;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #606060;
+      margin-bottom: 6px;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      color: #0f0f0f;
+      outline: none;
+      transition: border-color 0.15s;
+      background: #fff;
+    }
+
+    input[type="password"]:focus {
+      border-color: #065fd4;
+    }
+
+    .key-preview {
+      font-size: 11px;
+      color: #606060;
+      margin-top: 5px;
+      min-height: 16px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .btn-save {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 9px;
+      background: #065fd4;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-save:hover { background: #0552b5; }
+    .btn-save:active { background: #044399; }
+
+    .status-msg {
+      margin-top: 9px;
+      font-size: 12px;
+      min-height: 18px;
+      color: #188038;
+    }
+
+    .status-msg.error { color: #c0392b; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-dot"></div>
+    <h1>KeyFrames</h1>
+  </div>
+
+  <label for="api-key">Anthropic API Key</label>
+  <input type="password" id="api-key" placeholder="sk-ant-…" spellcheck="false" />
+  <p class="key-preview" id="key-preview"></p>
+
+  <button class="btn-save" id="btn-save">Save Key</button>
+
+  <p class="status-msg" id="status-msg"></p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
