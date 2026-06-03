@@ -94,29 +94,9 @@ function extractChapters(playerResponse) {
   return [];
 }
 
-// Returns { baseUrl } for the best available caption track, or null.
-// Priority: manual English → ASR English → any English variant → first.
-function extractCaptionTrack(playerResponse) {
-  const tracks = playerResponse
-    ?.captions
-    ?.playerCaptionsTracklistRenderer
-    ?.captionTracks;
-
-  if (!Array.isArray(tracks) || tracks.length === 0) return null;
-
-  const isEnglish = t => t.languageCode === 'en' || t.languageCode?.startsWith('en-');
-
-  const track =
-    tracks.find(t => isEnglish(t) && t.kind !== 'asr')  ?? // manual English
-    tracks.find(t => isEnglish(t))                        ?? // ASR English (en, en-US …)
-    tracks[0];                                               // anything
-
-  return { baseUrl: track.baseUrl ?? null };
-}
-
-// Fetches captions via the service worker → local KeyFrames server.
+// Fetches transcript via service worker → native messaging host.
 async function fetchTranscript(videoId) {
-  const result = await sendToBackground('FETCH_TRANSCRIPT_SERVER', { videoId, lang: 'en' });
+  const result = await sendToBackground('FETCH_TRANSCRIPT', { videoId });
   return result.segments.map(s => ({
     start: s.offset / 1000,
     dur:   s.duration / 1000,
@@ -238,18 +218,32 @@ function renderChapterSkeleton(shadowRoot, chapters) {
 }
 
 // Updates a single chapter card in-place once its summary arrives.
-function updateChapterCard(shadowRoot, index, summary, takeaways) {
+function updateChapterCard(shadowRoot, index, summary, takeaways, similarityScore, qualityScore) {
   const card = shadowRoot.querySelector(`[data-index="${index}"]`);
   if (!card) return;
 
   // Persist onto the chapter object so exportMarkdown has the data
   if (currentChapters[index]) {
-    currentChapters[index].summary   = summary;
-    currentChapters[index].takeaways = takeaways;
+    currentChapters[index].summary         = summary;
+    currentChapters[index].takeaways       = takeaways;
+    currentChapters[index].similarityScore = similarityScore;
+    currentChapters[index].qualityScore    = qualityScore;
   }
+
+  const badgeCls = score => score >= 70 ? 'kf-score-badge--high'
+    : score >= 40 ? 'kf-score-badge--mid'
+    : 'kf-score-badge--low';
+
+  const badges = [
+    similarityScore != null ? `<span class="kf-score-badge ${badgeCls(similarityScore)}">Coverage ${similarityScore}%</span>` : '',
+    qualityScore    != null ? `<span class="kf-score-badge ${badgeCls(qualityScore)}">Quality ${qualityScore}%</span>`        : '',
+  ].filter(Boolean).join('');
+
+  const scoreHtml = badges ? `<div class="kf-score-row">${badges}</div>` : '';
 
   const body = card.querySelector('.kf-chapter-body');
   body.innerHTML = `
+    ${scoreHtml}
     <p class="kf-summary">${summary}</p>
     <ul class="kf-takeaways">
       ${(takeaways || []).map(t => `<li>${t}</li>`).join('')}
@@ -322,7 +316,7 @@ async function init() {
 
   let chapters = extractChapters(playerResponse);
 
-  // ── Step 3: fetch transcript via local server ──────────────────────────────
+  // ── Step 3: fetch transcript via native host ───────────────────────────────
   let segments;
   try {
     segments = await fetchTranscript(videoId);
@@ -358,8 +352,8 @@ async function init() {
   for (let i = 0; i < chapters.length; i++) {
     const { title, startSeconds, segments: chapterSegments } = chapters[i];
     try {
-      const result = await sendToBackground('SUMMARIZE_CHAPTER', { title, startSeconds, segments: chapterSegments, chapterIndex: i, videoId });
-      updateChapterCard(shadowRoot, i, result.summary, result.takeaways);
+      const result = await sendToBackground('SUMMARIZE_CHAPTER', { title, segments: chapterSegments, chapterIndex: i, videoId });
+      updateChapterCard(shadowRoot, i, result.summary, result.takeaways, result.similarityScore, result.qualityScore);
     } catch (err) {
       markChapterError(shadowRoot, i, err.message);
     }
@@ -372,21 +366,10 @@ async function init() {
 // Assembles all chapter summaries into a Markdown document and triggers a download.
 // Uses an anchor-click download because chrome.downloads is not available in content scripts.
 function exportMarkdown(videoTitle, chapters) {
-  console.log('[KeyFrames] exportMarkdown called, chapters:', chapters.length, chapters.map(c => ({ title: c.title, hasSummary: !!c.summary })));
-
-  const formatTs = s => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = Math.floor(s % 60);
-    return h > 0
-      ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-      : `${m}:${String(sec).padStart(2, '0')}`;
-  };
-
   const lines = [`# ${videoTitle}`, ''];
 
   for (const ch of chapters) {
-    lines.push(`## ${ch.title} (${formatTs(ch.startSeconds)})`, '');
+    lines.push(`## ${ch.title} (${fmtSecs(ch.startSeconds)})`, '');
     if (ch.summary)  lines.push(ch.summary, '');
     if (ch.takeaways?.length) {
       ch.takeaways.forEach(b => lines.push(`- ${b}`));
