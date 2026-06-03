@@ -206,6 +206,29 @@
   to   { opacity: 1; transform: translateY(0);   }
 }
 
+/* ─── BERTScore badge ────────────────────────────────────────────────────────── */
+
+.kf-score-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.kf-score-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1.5px solid;
+  border-radius: 12px;
+  letter-spacing: 0.1px;
+}
+
+.kf-score-badge--high  { border-color: #16a34a; color: #16a34a; }
+.kf-score-badge--mid   { border-color: #d97706; color: #d97706; }
+.kf-score-badge--low   { border-color: #dc2626; color: #dc2626; }
+
 /* ─── Dark mode ──────────────────────────────────────────────────────────────── */
 
 @media (prefers-color-scheme: dark) {
@@ -248,6 +271,10 @@
   .kf-summary       { color: #c8c8c8; }
   .kf-takeaways li  { color: #999; }
   .kf-error         { color: #f1948a; }
+
+  .kf-score-badge--high { border-color: #4ade80; color: #4ade80; }
+  .kf-score-badge--mid  { border-color: #fbbf24; color: #fbbf24; }
+  .kf-score-badge--low  { border-color: #f87171; color: #f87171; }
 
   .kf-skeleton {
     background: linear-gradient(90deg, #2c2c2c 25%, #363636 50%, #2c2c2c 75%);

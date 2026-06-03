@@ -1,113 +1,221 @@
-# Luma Take-Home
+# KeyFrames
 
-Modern engineering is about directing leverage — tools, judgment, taste — toward real outcomes. This take-home is designed around that.
+A Chrome extension that turns any YouTube video into a structured, skimmable document — chapters, streaming AI summaries, takeaways, and quality scores — injected directly into the YouTube sidebar.
 
-Pick a problem. Build something that works. You have ~1 working day.
-
-**You must use AI coding tools** — Claude Code, Cursor, Codex, whatever you prefer. These problems are scoped so that AI is necessary to ship something real in a day. We want to see how you direct the tools: how you plan, how you course-correct, what you accept, and what you push back on.
+No terminal to keep open. No server to start. Load the extension, run one install script, done.
 
 ---
 
-## Choose a Problem
+## Features
 
-Pick the one that excites you most. These are deliberately open-ended — we want to see what directions you take and what decisions you make.
-
-### 1. Reverse-Engineer an Undocumented API
-
-Pick any website that doesn't have a public API. Reverse-engineer how it works under the hood, then build a useful tool on top of it.
-
-**Figure out the API, then build something real with it.**
-
-### 2. Fix Something Annoying
-
-Pick a website you use daily. Identify something that genuinely annoys you about it. Build a browser extension that fixes it.
-
-**Find the annoyance, ship the fix.**
-
-### 3. Clone and Improve
-
-Pick one specific feature or interaction from an app you admire. Rebuild it, then make it better — faster, cleaner, more thoughtful, whatever "better" means to you.
-
-**Rebuild it, improve it, and explain what you changed and why.**
+- **Streaming summaries** — words appear one by one as Claude generates them, just like a chat interface
+- **Auto chapter detection** — uses YouTube's native chapters if they exist; if not, Claude generates intelligent chapters from the transcript
+- **Per-chapter summaries** — 3–5 sentence summary for each chapter
+- **Key takeaways** — 3–5 concrete, specific bullets per chapter
+- **Coverage score** — lexical overlap between the summary and the transcript (how much of the transcript's vocabulary the summary captures)
+- **Quality score** — Claude's own rating (0–100) of how completely the summary captures the chapter's key ideas
+- **Clickable timestamps** — every chapter header jumps the video to that point
+- **One-click Markdown export** — downloads the full summary as a `.md` file
+- **Cross-language support** — works on videos in any language; Claude translates implicitly
+- **Shadow DOM isolation** — the sidebar's styles never leak into YouTube's UI and vice versa
 
 ---
 
-## Tips
+## Requirements
 
-The candidates who do best don't start by building — they start by getting sharp on the problem. It's easy to either throw everything at the wall or get heads-down on making something work, and miss the more important question: *what's actually worth solving here, and for whom?*
-
-Slow down before you write a line of code. The thinking you do upfront will shape everything.
-
----
-
-## What We're Looking For
-
-We want real, working software — not a prototype, not a toy. You'll likely focus on a slice of the problem, but that slice should actually work and be something you'd put in front of a user. Show polish where it matters to you — in the UX, the details, the interactions that feel right. Ship a finished product, not a proof of concept.
-
-We expect the result to be better than what an AI would produce on its own with minimal guidance. The AI writes the code; you own the decisions — what to build, how it should work, what to cut, and what to polish. Specifically, we're paying attention to:
-
-- **How you approach new problems** — how you break down ambiguity, decide what to tackle first, and make good decisions with incomplete information
-- **How you use AI tools** — not just that you used them, but how you directed them, where you pushed back, and where your judgment shaped the result
-- **The unique perspective you bring** — the product instincts, technical taste, or domain insight that made your solution distinct from what anyone else would have built
+- macOS (Chrome's native messaging host path is macOS-specific as written)
+- [Node.js](https://nodejs.org) v18 or later
+- An [Anthropic API key](https://console.anthropic.com)
+- Google Chrome (or any Chromium-based browser that supports native messaging)
 
 ---
 
-## What to Deliver
+## Setup
 
-### 1. Working software
+Setup is a one-time, two-step process: load the extension into Chrome, then run the install script.
 
-Build your solution directly in this repo. It should run. Include setup instructions that work in a fresh Linux container — we will run your code in one during review. If you use Docker, provide a `docker-compose.yml` for one-command setup.
+### Step 1 — Load the extension
 
-**If your project is deployable, deploy it.** We want to experience what you built, not just read about it. A live URL — whether it's a web app, an API endpoint, a browser extension, or a hosted service — goes a long way. Vercel, Railway, Fly, a VPS, whatever works. Include the URL in your APPROACH.md.
+1. Open `chrome://extensions` in Chrome
+2. Enable **Developer mode** (toggle in the top-right corner)
+3. Click **Load unpacked**
+4. Select the root `KeyFrames/` folder (the one containing `manifest.json`)
+5. The KeyFrames card appears. Copy the **Extension ID** shown beneath the name — it looks like `bgmpdnapjibnmkenmimmdnffbiknlepb`
 
-A `.env.example` is included with stub keys for providers we have accounts with (Anthropic, OpenAI, ElevenLabs, Google Cloud, AWS). Copy it to `.env`, use whichever keys your solution needs, and document any others.
+### Step 2 — Save your Extension ID
 
-### 2. APPROACH.md
-
-- What you built and why you picked this problem
-- Key decisions and tradeoffs
-- What you intentionally left out
-- What breaks first under pressure
-- What you'd build next
-
-### 3. Video walkthrough
-
-Record a short video (~5 minutes) showing what you built. Demo the key flows — whether that's a UI walkthrough, a CLI session, or hitting your API — explain your decisions, and highlight anything you're particularly proud of. This is your chance to show us the experience through your eyes.
-
-**Paste your video link (Loom, Google Drive, YouTube, etc.) into `video.md`.**
-
-### 4. AI session history
-
-Your AI session logs (Claude Code, Codex, Cursor) are packaged automatically when you run `./submit.sh`. If you used other AI tools (ChatGPT, etc.), export those conversations and include them in your repo before submitting.
-
-This is a required deliverable. We review your AI interaction to understand how you work — how you plan, iterate, and direct the tools.
-
----
-
-## Getting Started
+Create a file called `.extension-id` inside the `host/` folder containing only your Extension ID:
 
 ```bash
-# 1. Extract the challenge archive you downloaded
-tar xzf challenge.tar.gz && cd *eng-take-home*
-
-# 2. Create your own private repo and push to it
-git init && git add -A && git commit -m "initial"
-gh repo create my-take-home --private --source=. --push
-
-# 3. Copy the env file and fill in any keys you need
-cp .env.example .env
+echo "YOUR_EXTENSION_ID_HERE" > host/.extension-id
 ```
 
-Now build your solution. Commit and push as you go.
+Replace `YOUR_EXTENSION_ID_HERE` with the ID you copied in Step 1.
+
+### Step 3 — Add your Anthropic API key
+
+Create a `.env` file in the project root:
+
+```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+```
+
+Replace `sk-ant-...` with your actual key from [console.anthropic.com](https://console.anthropic.com).
+
+### Step 4 — Run the install script
+
+```bash
+cd host
+chmod +x install.sh
+./install.sh
+```
+
+The script will:
+- Install npm dependencies (`@anthropic-ai/sdk`, `youtube-transcript`, `dotenv`)
+- Create a wrapper executable at `~/Library/Application Support/KeyFrames/keyframes-host`
+- Register the native messaging host with Chrome at `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.keyframes.host.json`
+
+### Step 5 — Reload the extension
+
+Go back to `chrome://extensions` and click the **reload** button (circular arrow) on the KeyFrames card.
+
+That's it. Navigate to any YouTube video and the sidebar appears automatically.
 
 ---
 
-## Submitting
+## Usage
 
-When you're ready, run the submit script from your repo root:
+### Watching a video
 
-```bash
-./submit.sh
+Open any YouTube watch page (`youtube.com/watch?v=...`). KeyFrames automatically:
+
+1. Detects the video's chapters (or generates them with Claude if none exist)
+2. Fetches the transcript
+3. Shows chapter skeletons while it works
+4. Streams each chapter summary word-by-word into the sidebar
+5. Displays the Coverage and Quality scores once each chapter is done
+
+### Clicking timestamps
+
+Every chapter header has a clickable timestamp badge. Clicking it seeks the video directly to that chapter's start time.
+
+### Exporting notes
+
+Once all chapters are summarized, the **Export Notes** button activates. Clicking it downloads a Markdown file (`keyframes-<videoId>.md`) with all chapter summaries and takeaways formatted for use in any notes app.
+
+### Understanding the scores
+
+| Badge | What it measures |
+|-------|-----------------|
+| **Coverage %** | Lexical overlap between the summary text and the original transcript. High means the summary reuses similar vocabulary to the source. |
+| **Quality %** | Claude's own self-rating of how completely the summary captures the chapter's key ideas. More meaningful than coverage for judging actual comprehensiveness. |
+
+Both badges are color-coded: green (≥70%), amber (40–69%), red (<40%).
+
+### SPA navigation
+
+YouTube is a single-page app. KeyFrames listens for `yt-navigate-finish` events and re-runs automatically when you navigate to a different video — no page reload needed.
+
+---
+
+## Architecture
+
+```
+Chrome Extension
+├── content/content.js        # Injected into youtube.com/watch* pages
+├── content/sidebar.css       # Sidebar styles (loaded into Shadow DOM)
+├── background/service-worker.js  # Message relay between content script and host
+└── host/
+    ├── host.js               # Native messaging host — all AI logic lives here
+    ├── install.sh            # One-time setup script
+    └── package.json
 ```
 
-This handles everything: packages your AI session history, commits and pushes your latest changes, grants reviewer access, and registers your submission. You'll see a confirmation when it's done.
+### Why a native messaging host?
+
+YouTube's Content Security Policy blocks `fetch` calls to `api.anthropic.com` from content scripts. The extension service worker has no such restriction, but Manifest V3 service workers can't make long-running connections needed for streaming.
+
+The solution is a **native messaging host** — a local Node.js process that Chrome spawns on demand. Chrome communicates with it over stdin/stdout using a simple framing protocol (4-byte little-endian length prefix + UTF-8 JSON). The host owns all Claude API calls, including streaming, caching, and transcript fetching.
+
+### Request flow
+
+```
+YouTube page
+  └─ content.js              detects video, injects sidebar
+       └─ service-worker.js  relays messages over chrome.runtime
+            └─ host.js       fetches transcript, calls Claude, streams response
+```
+
+For summarization, the flow is:
+
+1. `content.js` sends `SUMMARIZE_CHAPTER` to the service worker
+2. Service worker forwards it to the host via the native port, tagged with the sender's tab ID
+3. Host opens a **streaming** Claude request; each text delta is sent back as `{ stream: true, text }`
+4. Service worker receives each chunk and calls `chrome.tabs.sendMessage` to forward it directly to the content script tab
+5. Content script appends each chunk to the chapter card in real time
+6. When the stream ends, the host parses the structured data (takeaways, quality score), computes the coverage score locally, and sends a final `{ stream: false, ...result }` message
+7. Service worker resolves the pending promise; content script renders the final formatted card
+
+### Caching
+
+Both chapter lists and chapter summaries are cached in memory on the host process (keyed by `videoId` and `videoId:chapterIndex` respectively). Re-opening the sidebar on the same video costs zero API calls for the session.
+
+---
+
+## Project Structure
+
+```
+KeyFrames/
+├── manifest.json
+├── .env                      # ANTHROPIC_API_KEY (create this yourself)
+├── icons/
+├── content/
+│   ├── content.js
+│   └── sidebar.css
+├── background/
+│   └── service-worker.js
+└── host/
+    ├── host.js
+    ├── install.sh
+    ├── package.json
+    ├── .extension-id         # Create this with your Extension ID
+    └── node_modules/
+```
+
+---
+
+## Troubleshooting
+
+**Sidebar doesn't appear**
+Hard-refresh the page (`Cmd+Shift+R`). If it still doesn't show, check `chrome://extensions` for errors on the KeyFrames card.
+
+**"Failed to load transcript: Native host disconnected"**
+The host process failed to start. Check the log:
+```bash
+cat /tmp/keyframes-host.log
+```
+Common causes: `install.sh` hasn't been run, Node.js isn't on PATH, or the `.env` file is missing.
+
+**"No transcript found for this video"**
+The video has no captions (neither manual nor auto-generated), or the captions are member-only. KeyFrames can't proceed without a transcript.
+
+**Summaries stop partway through**
+You may have hit an Anthropic rate limit. The in-memory cache means completed chapters aren't re-requested on reload — refresh the page to resume from where it left off.
+
+**After pulling new code**
+Re-run `host/install.sh` if `host.js` or `install.sh` changed. Then reload the extension at `chrome://extensions`.
+
+---
+
+## Demo Videos
+
+Three videos that show the range of what KeyFrames handles:
+
+**[But what is a neural network? | 3Blue1Brown](https://www.youtube.com/watch?v=aircAruvnKk)**
+Manual subtitles and YouTube-native chapters. KeyFrames uses the existing chapters and streams a summary for each — good baseline demo of the summarization pipeline on a well-structured technical video.
+
+**[Luma Agents Demo](https://www.youtube.com/watch?v=c_aGQouM6wk)**
+No chapters. KeyFrames falls back to ASR captions, generates chapters from scratch with Claude, then streams summaries for each — the full AI pipeline end-to-end.
+
+**[Etienne Chouard - TEDxRepubliquesquare](https://www.youtube.com/watch?v=oN5tdMSXWV8)**
+A French-language TED Talk. `youtube-transcript` fetches French captions; Claude generates English chapters and summaries. Cross-language support with no special-casing.
